@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Caneca inteligente con Arduino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;800&family=Source+Sans+3:wght@400;600;700;800&family=Martian+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: ficha de taller escolar; la caneca simulada abre la página y la mano se arrastra para probarla, la protoboard se construye junto con los pasos. */
+:root{
+  --bg:#F1F4F8; --surface:#FFFFFF; --ink:#162033; --muted:#4F5B70; --line:#D4DAE4;
+  --accent:#1F5FAD; --accent-soft:#E1EBF8; --on-accent:#FFFFFF; --hi:#F2B705;
+  --ok:#23824F; --stop:#C62828; --warn:#B87A00;
+  --wall:#E5EAF1; --floor:#CBD3DE; --can:#3F7F6E; --can-dark:#2E6255; --lid:#357062; --inside:#18241F;
+  --skin:#E8B48F; --skin-line:#B97F58; --paper:#F4F1E6; --metal:#A7ADB2; --pcb:#2D5FA8; --beam:#1F5FAD;
+  --w-red:#D2382B; --w-gnd:#2F3446; --w-yel:#C99A00; --w-blue:#2563EB; --w-pur:#7C3AED; --w-grn:#23824F; --w-org:#E07B00; --w-led-red:#B91C1C;
+  --code-bg:#162033; --code-fg:#E4E8EF; --code-dim:#8C95A8; --code-key:#8FC1FF; --code-str:#F2C46D;
+  --led-off:#C7CDD6; --res:#E2D6BF;
+  --f-display:"Outfit", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"Martian Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0F141D; --surface:#171E2A; --ink:#E5E9F0; --muted:#A1AABB; --line:#2A3344;
+  --accent:#6FA4EC; --accent-soft:#18263A; --on-accent:#0F141D; --hi:#F2C94C;
+  --ok:#4CC27F; --stop:#F06060; --warn:#E8B234;
+  --wall:#161E2A; --floor:#232D3C; --can:#4F9984; --can-dark:#3A7564; --lid:#448A76; --inside:#0A0F0D;
+  --skin:#D9A47F; --skin-line:#A7704C; --paper:#E6E2D4; --metal:#8E959A; --pcb:#4A7CC8; --beam:#6FA4EC;
+  --w-red:#F06A5E; --w-gnd:#A9B0C2; --w-yel:#EBC23A; --w-blue:#6C9BFF; --w-pur:#A98BFA; --w-grn:#4CC27F; --w-org:#F7A23B; --w-led-red:#F26B6B;
+  --code-bg:#0A0E15; --code-fg:#E4E8EF; --code-dim:#858EA2; --code-key:#8FC1FF; --code-str:#F2C46D;
+  --led-off:#333C4A; --res:#8C8270; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0F141D; --surface:#171E2A; --ink:#E5E9F0; --muted:#A1AABB; --line:#2A3344;
+  --accent:#6FA4EC; --accent-soft:#18263A; --on-accent:#0F141D; --hi:#F2C94C;
+  --ok:#4CC27F; --stop:#F06060; --warn:#E8B234;
+  --wall:#161E2A; --floor:#232D3C; --can:#4F9984; --can-dark:#3A7564; --lid:#448A76; --inside:#0A0F0D;
+  --skin:#D9A47F; --skin-line:#A7704C; --paper:#E6E2D4; --metal:#8E959A; --pcb:#4A7CC8; --beam:#6FA4EC;
+  --w-red:#F06A5E; --w-gnd:#A9B0C2; --w-yel:#EBC23A; --w-blue:#6C9BFF; --w-pur:#A98BFA; --w-grn:#4CC27F; --w-org:#F7A23B; --w-led-red:#F26B6B;
+  --code-bg:#0A0E15; --code-fg:#E4E8EF; --code-dim:#858EA2; --code-key:#8FC1FF; --code-str:#F2C46D;
+  --led-off:#333C4A; --res:#8C8270; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:60px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.05}
+h1{font-size:clamp(40px,6.6vw,74px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(28px,3.8vw,40px);font-weight:800;letter-spacing:-.01em}
+h3{font-size:22px;font-weight:600}
+p{margin:0}
+a{color:var(--accent)}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.lead{font-size:20px;color:var(--muted);max-width:60ch}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono)}
+section{display:flex;flex-direction:column;gap:20px;scroll-margin-top:72px}
+.sec-head{display:flex;flex-direction:column;gap:8px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px}
+button{font:inherit;font-weight:800;cursor:pointer;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 16px;min-height:44px}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible,pre:focus-visible,svg:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.top nav{max-width:1080px;margin:0 auto;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.top nav a{flex:none;text-decoration:none;color:var(--ink);font-weight:800;font-size:15px;padding:8px 12px;border-radius:8px}
+.top nav a:hover{background:var(--accent-soft)}
+
+.hero{padding-top:40px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:36px;align-items:end}
+.hero-text{display:flex;flex-direction:column;gap:16px;min-width:0}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.fact{background:var(--surface);padding:14px 18px;display:flex;flex-direction:column;gap:2px}
+.fact b{font-family:var(--f-display);font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.fact span{font-size:14px;color:var(--muted)}
+
+/* Simulador */
+.sim{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:start}
+.scene-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.scene-wrap{border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--wall)}
+.scene{display:block;width:100%;height:auto;touch-action:none;user-select:none}
+.scene text{font-family:var(--f-mono)}
+#hand{cursor:grab}
+#hand.dragging{cursor:grabbing}
+.hint{font-size:15px;color:var(--muted)}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.status{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;font-weight:800;font-size:18px;border:1.5px solid currentColor}
+.status i{width:14px;height:14px;border-radius:50%;background:currentColor;flex:none}
+.readout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ro{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);display:flex;flex-direction:column;gap:2px;min-width:0}
+.ro span{font-size:11px;color:var(--muted);font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.06em}
+.ro b{font-family:var(--f-display);font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
+.leds{display:flex;gap:16px;flex-wrap:wrap}
+.led{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+.led i{width:20px;height:20px;border-radius:50%;background:var(--led-off);transition:background-color .15s,box-shadow .15s}
+.led.on.g i{background:var(--w-grn);box-shadow:0 0 12px var(--w-grn)}
+.led.on.r i{background:var(--w-led-red);box-shadow:0 0 12px var(--w-led-red)}
+.led.on.b i{background:var(--hi);box-shadow:0 0 12px var(--hi)}
+.ctl{display:flex;flex-direction:column;gap:4px}
+.ctl label{display:flex;justify-content:space-between;font-weight:800;gap:10px}
+.ctl output{font-family:var(--f-mono);font-size:14px;font-variant-numeric:tabular-nums;color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:30px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;font-weight:700;cursor:pointer}
+.switch input{appearance:none;-webkit-appearance:none;width:48px;height:28px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;flex:none;transition:background-color .2s;margin:0}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--surface);transition:left .2s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{left:23px}
+.settings{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px}
+.serial{font-family:var(--f-mono);font-size:12px;background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:10px 12px;height:140px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;white-space:pre-wrap}
+
+/* Materiales */
+.progress{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.bar{flex:1 1 220px;height:10px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.mat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.mat-group{display:flex;flex-direction:column;gap:4px}
+.mat-group h3{margin-bottom:8px}
+.mat{display:grid;grid-template-columns:28px 42px minmax(0,1fr);gap:8px;align-items:start;padding:10px 2px;border-top:1px solid var(--line);cursor:pointer}
+.mat:first-of-type{border-top:0}
+.mat input{width:22px;height:22px;margin:2px 0 0;accent-color:var(--accent)}
+.qty{font-family:var(--f-mono);font-size:14px;color:var(--accent);font-variant-numeric:tabular-nums}
+.mat .name{font-weight:800}
+.mat small{display:block;color:var(--muted);font-size:15px;line-height:1.4}
+.mat.done .name{text-decoration:line-through;text-decoration-color:var(--accent)}
+
+/* Armado */
+.board-wrap{overflow-x:auto;padding:12px}
+.board-wrap svg{display:block;min-width:660px;width:100%;height:auto}
+.board-wrap text{font-family:var(--f-mono);font-size:11px;fill:var(--ink)}
+.board-wrap .lbl{font-family:var(--f-display);font-weight:800;font-size:18px}
+.board-wrap .hole{fill:var(--muted);opacity:.38}
+.board-wrap .bbl{font-size:10px;fill:var(--muted)}
+.board-wrap .bboard{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.board-wrap .ard{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.board-wrap .wire{fill:none;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+.board-wrap .dot{fill:var(--surface);stroke:var(--ink);stroke-width:2}
+.board-wrap [data-g]{transition:opacity .25s}
+.board-wrap [data-g].old{opacity:.3}
+.stepper{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.stepper button.chip{min-width:44px;padding:8px 0;font-family:var(--f-mono);font-size:14px}
+.stepper button.chip[aria-current="step"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.stepper button.chip.is-done:not([aria-current="step"]){border-color:var(--accent);color:var(--accent)}
+.stepper .spacer{flex:1}
+.build{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+.step-card{display:flex;flex-direction:column;gap:14px;min-width:0}
+.step-card h3{font-size:28px}
+.step-card ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
+.note{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;padding:12px 14px;border-radius:10px;background:var(--accent-soft);font-size:16px}
+.note.warn{background:color-mix(in srgb,var(--stop) 12%,var(--surface))}
+.note strong{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding-top:4px;font-weight:500}
+.step-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:14px}
+.step-foot label{display:flex;gap:10px;align-items:center;font-weight:800;cursor:pointer;min-height:44px}
+.step-foot input{width:22px;height:22px;accent-color:var(--accent)}
+.step-nav{display:flex;gap:8px}
+.holes{display:flex;flex-direction:column;min-width:0}
+.holes h3{margin-bottom:10px}
+.hrow{display:grid;grid-template-columns:14px minmax(0,1fr);gap:10px;align-items:start;padding:9px 0;border-top:1px solid var(--line)}
+.hrow:first-of-type{border-top:0}
+.hrow .sw{width:14px;height:14px;border-radius:4px;margin-top:4px;box-shadow:inset 0 0 0 1px var(--line)}
+.hrow b{display:block}
+.hrow span{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.empty{color:var(--muted);font-style:italic}
+
+/* Código */
+.code{display:flex;flex-direction:column;min-width:0;border-radius:14px;overflow:hidden;background:var(--code-bg);border:1px solid var(--line)}
+.code-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px 10px 16px;border-bottom:1px solid rgba(255,255,255,.08);color:var(--code-dim);font-family:var(--f-mono);font-size:12px}
+.code-bar button{background:transparent;color:var(--code-fg);border-color:rgba(255,255,255,.25);padding:6px 14px;min-height:38px;font-size:14px}
+.code pre{margin:0;padding:16px;overflow:auto;max-height:620px;font-family:var(--f-mono);font-size:12.5px;line-height:1.7;color:var(--code-fg)}
+.code .c{color:var(--code-dim)} .code .k{color:var(--code-key)} .code .s{color:var(--code-str)}
+.code mark{background:rgba(143,193,255,.18);color:inherit;border-radius:3px}
+
+details{border-top:1px solid var(--line);padding:4px 0}
+details:last-child{border-bottom:1px solid var(--line)}
+summary{cursor:pointer;font-weight:800;padding:12px 4px;min-height:44px}
+details p{padding:0 4px 14px;color:var(--muted);max-width:70ch}
+.quiz{display:flex;flex-direction:column;gap:16px}
+.q{display:flex;flex-direction:column;gap:12px}
+.q-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.q h3{font-size:24px}
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.opts button{text-align:left;font-weight:700;padding:12px 16px}
+.opts button.right{background:color-mix(in srgb,var(--ok) 18%,var(--surface));border-color:var(--ok)}
+.opts button.wrong{background:color-mix(in srgb,var(--stop) 14%,var(--surface));border-color:var(--stop)}
+.feedback{padding:12px 14px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.dots{display:flex;gap:6px}
+.dots i{width:12px;height:12px;border-radius:50%;background:var(--line)}
+.dots i.ok{background:var(--ok)} .dots i.no{background:var(--stop)} .dots i.cur{outline:2px solid var(--ink);outline-offset:1px}
+
+@media (max-width:880px){
+  .hero,.sim,.build,.mat-grid{grid-template-columns:minmax(0,1fr)}
+  .opts{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <nav aria-label="Secciones">
+    <a href="#simulador">Simulador</a>
+    <a href="#materiales">Materiales</a>
+    <a href="#armado">Arma el circuito</a>
+    <a href="#codigo">Código</a>
+    <a href="#problemas">Problemas comunes</a>
+    <a href="#quiz">Ponte a prueba</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Proyecto · Tecnología e Informática</p>
+      <h1>Caneca inteligente</h1>
+      <p class="lead">Un sensor ultrasónico en el frente de la caneca detecta la mano. Cuando está a menos de 15 cm, un servomotor levanta la tapa, suena un pito y se enciende el LED verde. Cuando retiras la mano, la tapa se cierra sola.</p>
+    </div>
+    <div class="facts" aria-label="Datos del proyecto">
+      <div class="fact"><b>15 cm</b><span>distancia para abrir (ajustable)</span></div>
+      <div class="fact"><b>0° → 100°</b><span>giro del servo</span></div>
+      <div class="fact"><b>8 pasos</b><span>con protoboard guiada</span></div>
+      <div class="fact"><b>90–120 min</b><span>tiempo estimado</span></div>
+    </div>
+  </div>
+
+  <!-- SIMULADOR -->
+  <section id="simulador">
+    <div class="sec-head">
+      <p class="eyebrow">Banco de pruebas</p>
+      <h2>Prueba la caneca</h2>
+      <p class="muted">Arrastra la mano hacia la caneca. El sensor solo la ve si está dentro de su haz. Cuando la tapa esté abierta, bota un papel.</p>
+    </div>
+    <div class="sim">
+      <div class="scene-col">
+        <div class="scene-wrap">
+          <svg class="scene" id="scene" viewBox="0 0 600 330" role="img" aria-labelledby="sceneDesc" tabindex="0">
+            <desc id="sceneDesc">Vista lateral de una caneca con tapa abatible, un servomotor atrás, un sensor ultrasónico al frente y una mano que se puede arrastrar.</desc>
+            <rect x="0" y="298" width="600" height="32" fill="var(--floor)"></rect>
+            <g id="ruler"></g>
+            <path id="beam" d="" fill="var(--beam)" opacity=".14"></path>
+            <line id="beamLine" x1="196" y1="160" x2="40" y2="160" stroke="var(--beam)" stroke-width="2" stroke-dasharray="5 5"></line>
+            <!-- caneca -->
+            <ellipse cx="310" cy="128" rx="92" ry="7" fill="var(--inside)"></ellipse>
+            <path d="M222 132 L398 132 L386 298 L234 298 Z" fill="var(--can)"></path>
+            <path d="M246 150 L252 282" stroke="var(--can-dark)" stroke-width="6" stroke-linecap="round"></path>
+            <path d="M374 150 L368 282" stroke="var(--can-dark)" stroke-width="6" stroke-linecap="round"></path>
+            <rect x="404" y="132" width="30" height="36" rx="4" fill="var(--pcb)"></rect>
+            <text x="419" y="186" text-anchor="middle" font-size="10" fill="var(--muted)">servo</text>
+            <g id="lid" transform="rotate(0 404 122)">
+              <rect x="212" y="110" width="196" height="14" rx="5" fill="var(--lid)"></rect>
+              <rect x="226" y="104" width="22" height="8" rx="3" fill="var(--can-dark)"></rect>
+            </g>
+            <circle cx="404" cy="122" r="6" fill="var(--ink)"></circle>
+            <!-- sensor -->
+            <rect x="198" y="144" width="26" height="32" rx="4" fill="var(--pcb)"></rect>
+            <circle cx="204" cy="152" r="5.5" fill="var(--metal)" stroke="var(--ink)" stroke-width="1.5"></circle>
+            <circle cx="204" cy="168" r="5.5" fill="var(--metal)" stroke="var(--ink)" stroke-width="1.5"></circle>
+            <text x="211" y="194" text-anchor="middle" font-size="10" fill="var(--muted)">sensor</text>
+            <!-- LEDs y pito en el frente -->
+            <circle id="sG" cx="290" cy="222" r="8" fill="var(--led-off)"></circle>
+            <circle id="sR" cx="316" cy="222" r="8" fill="var(--led-off)"></circle>
+            <circle id="sB" cx="344" cy="222" r="10" fill="var(--ink)"></circle>
+            <circle cx="344" cy="222" r="3" fill="var(--metal)"></circle>
+            <g id="balls"></g>
+            <!-- mano -->
+            <g id="hand" transform="translate(110 160)" role="button" aria-label="Mano: arrástrala hacia la caneca">
+              <rect x="-70" y="-10" width="44" height="20" rx="6" fill="var(--skin)" opacity=".85"></rect>
+              <rect x="-30" y="-16" width="32" height="32" rx="9" fill="var(--skin)" stroke="var(--skin-line)" stroke-width="1.5"></rect>
+              <rect x="0" y="-15" width="18" height="6" rx="3" fill="var(--skin)" stroke="var(--skin-line)" stroke-width="1.5"></rect>
+              <rect x="0" y="-7" width="20" height="6" rx="3" fill="var(--skin)" stroke="var(--skin-line)" stroke-width="1.5"></rect>
+              <rect x="0" y="1" width="19" height="6" rx="3" fill="var(--skin)" stroke="var(--skin-line)" stroke-width="1.5"></rect>
+              <rect x="0" y="9" width="15" height="6" rx="3" fill="var(--skin)" stroke="var(--skin-line)" stroke-width="1.5"></rect>
+              <rect x="-14" y="-24" width="8" height="14" rx="4" fill="var(--skin)" stroke="var(--skin-line)" stroke-width="1.5" transform="rotate(-30 -10 -17)"></rect>
+              <circle id="handPaper" cx="-8" cy="22" r="7" fill="var(--paper)" stroke="var(--muted)" stroke-width="1"></circle>
+            </g>
+          </svg>
+        </div>
+        <p class="hint" id="hint">Arrastra la mano con el dedo o el mouse. También puedes usar el control de distancia.</p>
+      </div>
+      <div class="panel side">
+        <div class="status" id="status" style="color:var(--stop)"><i></i><span id="statusTxt">Cerrada, esperando una mano</span></div>
+        <div class="readout">
+          <div class="ro"><span>Distancia medida</span><b id="roDist">—</b></div>
+          <div class="ro"><span>Ángulo del servo</span><b id="roAng">0°</b></div>
+          <div class="ro"><span>Aperturas</span><b id="roOpen">0</b></div>
+          <div class="ro"><span>Papeles botados</span><b id="roTrash">0</b></div>
+        </div>
+        <div class="leds">
+          <div class="led g" id="ledG"><i></i>Verde (D4)</div>
+          <div class="led r" id="ledR"><i></i>Rojo (D5)</div>
+          <div class="led b" id="ledB"><i></i>Pito (D7)</div>
+        </div>
+        <div class="ctl">
+          <label for="dRange">Distancia de la mano <output id="dOut" for="dRange">35 cm</output></label>
+          <input type="range" id="dRange" min="2" max="37" step="1" value="17">
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-primary" id="useBtn">Simular un uso</button>
+          <button type="button" id="throwBtn">Botar papel</button>
+        </div>
+        <label class="switch" for="tSound">Sonido del pito<input type="checkbox" id="tSound"></label>
+        <div class="settings">
+          <p class="eyebrow">Ajustes (se copian al código)</p>
+          <div class="ctl"><label for="sDist">Abrir a menos de <output id="oDist">15 cm</output></label><input type="range" id="sDist" min="5" max="35" step="1" value="15"></div>
+          <div class="ctl"><label for="sAng">Ángulo de apertura <output id="oAng">100°</output></label><input type="range" id="sAng" min="60" max="150" step="5" value="100"></div>
+          <div class="ctl"><label for="sTime">Tiempo abierta <output id="oTime">3 s</output></label><input type="range" id="sTime" min="1" max="10" step="1" value="3"></div>
+        </div>
+        <div>
+          <p class="eyebrow" style="margin-bottom:6px">Monitor serie · 9600 baudios</p>
+          <div class="serial" id="serial" aria-label="Monitor serie simulado"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MATERIALES -->
+  <section id="materiales">
+    <div class="sec-head">
+      <p class="eyebrow">Antes de empezar</p>
+      <h2>Materiales</h2>
+      <p class="muted">Marca cada material a medida que lo tengas en la mesa.</p>
+    </div>
+    <div class="progress"><div class="bar" aria-hidden="true"><i id="matBar"></i></div><span id="matCount" class="mono">0 de 0 listos</span><button type="button" id="matReset">Desmarcar todo</button></div>
+    <div class="mat-grid">
+      <div class="panel mat-group" id="matE"><h3>Electrónica</h3></div>
+      <div class="panel mat-group" id="matO"><h3>Caneca y herramientas</h3></div>
+    </div>
+  </section>
+
+  <!-- ARMADO -->
+  <section id="armado">
+    <div class="sec-head">
+      <p class="eyebrow">Construcción</p>
+      <h2>Arma el circuito</h2>
+      <p class="muted">Cada paso dibuja en la protoboard solo las piezas y cables nuevos. Lo que ya armaste queda en gris claro. Las letras (a–j) y números (1–30) vienen impresos en tu protoboard.</p>
+    </div>
+    <div class="stepper" id="stepper" aria-label="Pasos"></div>
+    <div class="panel board-wrap">
+      <svg id="board" viewBox="0 -18 820 470" role="img" aria-label="Protoboard de la caneca inteligente, que se dibuja según el paso elegido">
+        <g id="bbHoles"></g><g id="bbWires"></g><g id="bbParts"></g><g id="bbDots"></g>
+      </svg>
+    </div>
+    <div class="build">
+      <article class="panel step-card" id="stepCard" aria-live="polite"></article>
+      <div class="panel holes" id="holes"></div>
+    </div>
+  </section>
+
+  <!-- CÓDIGO -->
+  <section id="codigo">
+    <div class="sec-head">
+      <p class="eyebrow">Programa</p>
+      <h2>Código para el Arduino</h2>
+      <p class="muted">Las líneas resaltadas cambian con los ajustes del simulador. La librería Servo ya viene incluida en el Arduino IDE.</p>
+    </div>
+    <div class="code">
+      <div class="code-bar"><span>caneca_inteligente.ino</span><button type="button" id="copyBtn">Copiar código</button></div>
+      <pre id="code" tabindex="0"></pre>
+    </div>
+  </section>
+
+  <!-- PROBLEMAS -->
+  <section id="problemas">
+    <div class="sec-head">
+      <p class="eyebrow">Si algo falla</p>
+      <h2>Problemas comunes</h2>
+    </div>
+    <div>
+      <details><summary>La tapa no se levanta o se queda a medio camino</summary><p>La tapa puede ser muy pesada para el SG90. Usa una tapa liviana de cartón o plástico, apoya el brazo del servo cerca de la bisagra o cambia a un servo más fuerte como el MG996R. Confirma que el cable naranja vaya a D6.</p></details>
+      <details><summary>La tapa se abre sola, sin acercar la mano</summary><p>El sensor está viendo una pared, una silla o el piso. Baja la distancia de apertura y apunta el sensor al frente, a la altura donde pasa la mano. En el simulador, prueba qué pasa si subes mucho la distancia.</p></details>
+      <details><summary>El Arduino se reinicia cada vez que se abre la tapa</summary><p>El servo consume mucha corriente al arrancar. Usa un cable USB bueno o un cargador de celular de 5 V, y pon un condensador de 100 µF entre el riel + y el riel − cerca del servo.</p></details>
+      <details><summary>La tapa sube hacia el lado equivocado o golpea</summary><p>Depende de cómo montaste el servo. Cambia el ángulo de apertura, o en el código pon ANGULO_CERRADA en 180 y ANGULO_ABIERTA en 80.</p></details>
+      <details><summary>La tapa nunca se cierra</summary><p>El código espera a que no haya nada frente al sensor. Si hay un objeto a menos de la distancia de apertura, la tapa se queda abierta. Revisa hacia dónde apunta el sensor.</p></details>
+      <details><summary>El sensor marca 0 o distancias que saltan</summary><p>Revisa que Trig vaya a D9 y Echo a D10. Si están cruzados no mide. Por debajo de 2 cm el sensor tampoco mide bien.</p></details>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz">
+    <div class="sec-head">
+      <p class="eyebrow">Repaso</p>
+      <h2>Ponte a prueba</h2>
+      <p class="muted">Cinco preguntas sobre cómo funciona la caneca.</p>
+    </div>
+    <div class="panel quiz" id="quizBox"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var store={
+    get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:JSON.parse(v);}catch(e){return d;}},
+    set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+  };
+  var NS="http://www.w3.org/2000/svg";
+  function el(tag,attrs,txt){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(txt)e.textContent=txt;return e;}
+  function $(id){return document.getElementById(id);}
+
+  /* ---------- Ajustes ---------- */
+  var sDist=$("sDist"),sAng=$("sAng"),sTime=$("sTime");
+  function cfg(){return {dist:+sDist.value,ang:+sAng.value,time:+sTime.value};}
+  function syncOut(){var C=cfg();$("oDist").textContent=C.dist+" cm";$("oAng").textContent=C.ang+"°";$("oTime").textContent=C.time+" s";}
+
+  /* ---------- Simulador ---------- */
+  var SX=198,SY=160,PX=4; // frente del sensor, 4 px = 1 cm
+  var scene=$("scene"),hand=$("hand"),lid=$("lid"),dR=$("dRange"),serial=$("serial");
+  var ruler=$("ruler");
+  for(var cm=0;cm<=40;cm+=10){var rx=SX-cm*PX;ruler.appendChild(el("rect",{x:rx-1,y:298,width:2,height:cm%20===0?10:6,fill:"var(--muted)"}));ruler.appendChild(el("text",{x:rx,y:322,"text-anchor":"middle","font-size":"10",fill:"var(--muted)"},cm+" cm"));}
+  var limMark=el("rect",{x:0,y:60,width:2,height:238,fill:"var(--hi)"});ruler.appendChild(limMark);
+  var limTxt=el("text",{x:0,y:54,"text-anchor":"middle","font-size":"10",fill:"var(--ink)"},"");ruler.appendChild(limTxt);
+  var S={hx:110,hy:160,servo:0,target:0,state:"cerrada",openedAt:0,awaySince:0,beep:-9999,opens:0,trash:0,reading:49,measAt:0,auto:false,balls:[],hasPaper:true};
+  function fingertip(){return S.hx+20;}
+  function handDist(){return (SX-fingertip())/PX;}
+  function seen(){var dpx=SX-fingertip();if(dpx<0)return false;return Math.abs(S.hy-SY)<=14+dpx*0.27;}
+  function measure(){var r=seen()?Math.max(2,Math.round(handDist())):Math.round(SX/PX);return r;}
+  function log(t){var d=document.createElement("div");d.textContent=t;serial.appendChild(d);while(serial.children.length>8)serial.removeChild(serial.firstChild);}
+  var audioCtx=null;
+  function beep(){if(!$("tSound").checked)return;try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.frequency.value=1700;g.gain.value=.05;o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.15);}catch(e){}}
+  var lastT=performance.now(),logAt=0;
+  function frame(now){
+    var dt=Math.min((now-lastT)/1000,.1);lastT=now;var C=cfg();
+    if(now-S.measAt>100){S.measAt=now;S.reading=measure();}
+    var r=S.reading;
+    if(S.state==="cerrada"){
+      if(S.servo===0&&r<=C.dist){S.state="abierta";S.target=C.ang;S.openedAt=now;S.awaySince=0;S.beep=now;S.opens++;beep();log("Mano a "+r+" cm: abriendo (vez "+S.opens+")");}
+    } else if(S.state==="abierta"){
+      S.target=C.ang;
+      if(now-S.openedAt>=C.time*1000){
+        if(r>C.dist){if(!S.awaySince)S.awaySince=now;if(now-S.awaySince>=500){S.state="cerrando";S.target=0;log("Cerrando la tapa");}}
+        else S.awaySince=0;
+      }
+    } else if(S.state==="cerrando"){
+      if(S.servo===0)S.state="cerrada";
+    }
+    var sp=220*dt;
+    if(S.servo<S.target)S.servo=Math.min(S.target,S.servo+sp);else if(S.servo>S.target)S.servo=Math.max(S.target,S.servo-sp);
+    stepBalls(dt);
+    if(now-logAt>1000){logAt=now;log("Distancia: "+r+" cm");}
+    draw(C,now,r);
+    requestAnimationFrame(frame);
+  }
+  function lift(){return Math.min(S.servo,115);}
+  function draw(C,now,r){
+    hand.setAttribute("transform","translate("+S.hx+" "+S.hy+")");
+    lid.setAttribute("transform","rotate("+lift()+" 404 122)");
+    var lx=SX-C.dist*PX;limMark.setAttribute("x",lx-1);limTxt.setAttribute("x",lx);limTxt.textContent="abre a "+C.dist+" cm";
+    var see=seen(),far=see?fingertip():0,dpx=SX-far,half=14+dpx*0.27;
+    $("beam").setAttribute("d","M"+SX+" "+SY+" L"+far+" "+(SY-half)+" L"+far+" "+(SY+half)+" Z");
+    var bl=$("beamLine");bl.setAttribute("x2",far);
+    var open=S.state==="abierta"||(S.state==="cerrando"&&S.servo>0);
+    var beeping=now-S.beep<160;
+    $("ledG").classList.toggle("on",open);$("ledR").classList.toggle("on",!open);$("ledB").classList.toggle("on",beeping);
+    $("sG").setAttribute("fill",open?"var(--w-grn)":"var(--led-off)");$("sR").setAttribute("fill",open?"var(--led-off)":"var(--w-led-red)");
+    $("sB").setAttribute("fill",beeping?"var(--hi)":"var(--ink)");
+    $("roDist").textContent=see?r+" cm":r+" cm (pared)";
+    $("roAng").textContent=Math.round(S.servo)+"°";$("roOpen").textContent=S.opens;$("roTrash").textContent=S.trash;
+    var st=$("status"),t;
+    if(S.state==="cerrada"){t="Cerrada, esperando una mano";st.style.color="var(--stop)";}
+    else if(S.state==="abierta"){var left=Math.max(0,C.time-(now-S.openedAt)/1000);t=left>0?"Abierta, cierra en mínimo "+Math.ceil(left)+" s":(r<=C.dist?"Abierta, esperando que retires la mano":"Abierta, cerrando pronto");st.style.color="var(--ok)";}
+    else{t="Cerrando";st.style.color="var(--warn)";}
+    $("statusTxt").textContent=t;
+    $("handPaper").style.display=S.hasPaper?"":"none";
+    if(!drag&&!S.auto){dR.value=Math.round(Math.min(37,Math.max(2,handDist())));}
+    $("dOut").textContent=Math.round(handDist())+" cm";
+  }
+  // papeles
+  var ballsG=$("balls");
+  function throwPaper(){
+    if(!S.hasPaper)return false;
+    if(lift()<50){$("hint").textContent="La tapa está cerrada. Acerca la mano primero para que se abra.";return false;}
+    var x0=S.hx-8,y0=S.hy+22,c=el("circle",{cx:x0,cy:y0,r:7,fill:"var(--paper)",stroke:"var(--muted)","stroke-width":1});
+    ballsG.appendChild(c);S.hasPaper=false;
+    S.balls.push({c:c,t:0,x0:x0,y0:y0,x1:300+Math.random()*30,y1:150});
+    $("hint").textContent="¡Papel adentro! Retira la mano para que la tapa se cierre.";
+    return true;
+  }
+  function stepBalls(dt){
+    S.balls=S.balls.filter(function(b){b.t+=dt/0.7;var k=Math.min(b.t,1);
+      var x=b.x0+(b.x1-b.x0)*k,y=b.y0+(b.y1-b.y0)*k-Math.sin(k*Math.PI)*90;
+      b.c.setAttribute("cx",x);b.c.setAttribute("cy",y);
+      if(k>=1){b.c.remove();S.trash++;setTimeout(function(){S.hasPaper=true;},600);return false;}return true;});
+  }
+  // arrastrar la mano
+  var drag=null;
+  function svgPt(e){var p=scene.createSVGPoint();p.x=e.clientX;p.y=e.clientY;var m=scene.getScreenCTM();return m?p.matrixTransform(m.inverse()):{x:0,y:0};}
+  function clampHand(){S.hx=Math.max(30,Math.min(SX-22,S.hx));S.hy=Math.max(40,Math.min(280,S.hy));}
+  hand.addEventListener("pointerdown",function(e){if(S.auto)return;var p=svgPt(e);drag={dx:p.x-S.hx,dy:p.y-S.hy};hand.classList.add("dragging");scene.setPointerCapture(e.pointerId);e.preventDefault();});
+  scene.addEventListener("pointermove",function(e){if(!drag)return;var p=svgPt(e);S.hx=p.x-drag.dx;S.hy=p.y-drag.dy;clampHand();});
+  function endDrag(){drag=null;hand.classList.remove("dragging");}
+  scene.addEventListener("pointerup",endDrag);scene.addEventListener("pointercancel",endDrag);
+  scene.addEventListener("keydown",function(e){if(S.auto)return;var k=e.key;if(k==="ArrowLeft")S.hx-=8;else if(k==="ArrowRight")S.hx+=8;else if(k==="ArrowUp")S.hy-=8;else if(k==="ArrowDown")S.hy+=8;else return;e.preventDefault();clampHand();});
+  dR.addEventListener("input",function(){if(S.auto)return;S.hx=SX-(+dR.value)*PX-20;S.hy=SY;clampHand();});
+  $("throwBtn").addEventListener("click",function(){throwPaper();});
+  function moveHand(toX,toY,ms,done){var x0=S.hx,y0=S.hy,t0=performance.now();
+    (function f(t){var k=Math.min((t-t0)/ms,1),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;S.hx=x0+(toX-x0)*e;S.hy=y0+(toY-y0)*e;if(k<1)requestAnimationFrame(f);else done();})(t0);}
+  $("useBtn").addEventListener("click",function(){
+    if(S.auto)return;S.auto=true;var btns=[$("useBtn"),$("throwBtn"),dR];btns.forEach(function(b){b.disabled=true;});
+    var near=SX-Math.max(4,cfg().dist-6)*PX-20;
+    moveHand(S.hx,SY,300,function(){moveHand(near,SY,1100,function(){
+      var w=setInterval(function(){if(lift()>=Math.min(cfg().ang,100)-2){clearInterval(w);
+        setTimeout(function(){throwPaper();setTimeout(function(){moveHand(SX-35*PX-20,SY,1100,function(){S.auto=false;btns.forEach(function(b){b.disabled=false;});});},900);},300);}},80);
+    });});
+  });
+  [sDist,sAng,sTime].forEach(function(i){i.addEventListener("input",function(){syncOut();renderCode();});});
+  syncOut();
+  requestAnimationFrame(frame);
+
+  /* ---------- Materiales ---------- */
+  var materiales=[
+    {id:"c1",g:"E",q:"1",n:"Arduino UNO (o compatible)",d:"Con su cable USB tipo A–B."},
+    {id:"c2",g:"E",q:"1",n:"Sensor ultrasónico HC-SR04",d:"Detecta la mano. Mide de 2 a 400 cm."},
+    {id:"c3",g:"E",q:"1",n:"Servomotor SG90",d:"Levanta la tapa. Si la tapa pesa, usa un MG996R."},
+    {id:"c4",g:"E",q:"1",n:"Protoboard",d:"De 400 u 830 puntos."},
+    {id:"c5",g:"E",q:"2",n:"LEDs de 5 mm",d:"Uno verde (abierta) y uno rojo (cerrada)."},
+    {id:"c6",g:"E",q:"2",n:"Resistencias de 220 Ω",d:"Bandas rojo-rojo-café."},
+    {id:"c7",g:"E",q:"1",n:"Pito (buzzer activo)",d:"Suena cuando se abre la tapa."},
+    {id:"c8",g:"E",q:"~20",n:"Cables jumper",d:"Macho-macho y 7 macho-hembra largos para llevar el sensor y el servo hasta la caneca."},
+    {id:"c9",g:"O",q:"1",n:"Caneca pequeña con tapa abatible",d:"O una caja de cartón con tapa unida con cinta como bisagra."},
+    {id:"c10",g:"O",q:"1",n:"Alambre o palito de paleta",d:"Une el brazo del servo con la tapa."},
+    {id:"c11",g:"O",q:"1",n:"Silicona caliente o cinta doble faz",d:"Para fijar el sensor, el servo y la protoboard."},
+    {id:"c12",g:"O",q:"1",n:"Computador con Arduino IDE",d:"Descarga gratuita en arduino.cc."},
+    {id:"c13",g:"O",q:"1",n:"Cargador de celular de 5 V",d:"Para dejar la caneca funcionando sin el computador.",opt:true}
+  ];
+  var matState=store.get("can-mat",{});
+  materiales.forEach(function(m){
+    var lab=document.createElement("label");lab.className="mat"+(matState[m.id]?" done":"");lab.setAttribute("for",m.id);
+    lab.innerHTML='<input type="checkbox" id="'+m.id+'"'+(matState[m.id]?" checked":"")+'><span class="qty">'+m.q+'×</span><span><span class="name">'+m.n+'</span><small>'+m.d+'</small></span>';
+    $("mat"+m.g).appendChild(lab);
+    lab.querySelector("input").addEventListener("change",function(ev){matState[m.id]=ev.target.checked;lab.classList.toggle("done",ev.target.checked);store.set("can-mat",matState);matProgress();});
+  });
+  function matProgress(){var n=materiales.filter(function(m){return matState[m.id];}).length;$("matBar").style.width=(n/materiales.length*100)+"%";$("matCount").textContent=n+" de "+materiales.length+" listos";}
+  matProgress();
+  $("matReset").addEventListener("click",function(){matState={};store.set("can-mat",matState);document.querySelectorAll(".mat").forEach(function(l){l.classList.remove("done");l.querySelector("input").checked=false;});matProgress();});
+
+  /* ---------- Protoboard ---------- */
+  var RY={"+t":110,"-t":130,a:160,b:180,c:200,d:220,e:240,f:280,g:300,h:320,i:340,j:360,"-b":390,"+b":410};
+  function bx(c){return 170+(c-1)*20;}
+  function hole(id){var m=id.match(/^([a-j])(\d+)$/);return [bx(+m[2]),RY[m[1]]];}
+  var bbH=$("bbHoles"),bbW=$("bbWires"),bbP=$("bbParts"),bbD=$("bbDots"),grouped=[];
+  function tag(node,g){node.setAttribute("data-g",g);grouped.push(node);return node;}
+  bbH.appendChild(el("rect",{class:"bboard",x:146,y:92,width:632,height:336,rx:8}));
+  [[100,"--w-red"],[140,"--w-blue"],[380,"--w-blue"],[420,"--w-red"]].forEach(function(l){var ln=el("line",{x1:162,x2:762,y1:l[0],y2:l[0],"stroke-width":2});ln.style.stroke="var("+l[1]+")";bbH.appendChild(ln);});
+  Object.keys(RY).forEach(function(r){for(var c=1;c<=30;c++){bbH.appendChild(el("rect",{class:"hole",x:bx(c)-3,y:RY[r]-3,width:6,height:6,rx:1}));}});
+  "abcdefghij".split("").forEach(function(r){bbH.appendChild(el("text",{class:"bbl",x:156,y:RY[r]+4,"text-anchor":"middle"},r));bbH.appendChild(el("text",{class:"bbl",x:768,y:RY[r]+4,"text-anchor":"middle"},r));});
+  [["+t","+"],["-t","−"],["-b","−"],["+b","+"]].forEach(function(p){bbH.appendChild(el("text",{class:"bbl",x:156,y:RY[p[0]]+4,"text-anchor":"middle"},p[1]));});
+  [1,5,10,15,20,25,30].forEach(function(c){bbH.appendChild(el("text",{class:"bbl",x:bx(c),y:264,"text-anchor":"middle"},String(c)));});
+  var AP={"5V":150,"GND":180,"D4":220,"D5":255,"D6":290,"D7":325,"D9":355,"D10":385};
+  bbH.appendChild(el("rect",{class:"ard",x:10,y:112,width:104,height:290,rx:10}));
+  bbH.appendChild(el("text",{class:"lbl",x:20,y:136},"ARDUINO"));
+  Object.keys(AP).forEach(function(p){bbH.appendChild(el("text",{x:100,y:AP[p]+4,"text-anchor":"end"},p));});
+  function wpath(g,col,d){var p=el("path",{class:"wire",d:d});p.style.stroke="var("+col+")";bbW.appendChild(tag(p,g));}
+  function dot(g,x,y){bbD.appendChild(tag(el("circle",{class:"dot",cx:x,cy:y,r:3.5}),g));}
+  function ardWire(g,col,pin,h){var py=AP[pin],e=hole(h),x=e[0],y=e[1],d;
+    if(y>260)d="M114 "+py+" C190 "+py+" "+x+" "+(y+80)+" "+x+" "+y;
+    else d="M114 "+py+" C170 "+py+" "+(x-20)+" "+(y+70)+" "+x+" "+y;
+    wpath(g,col,d);dot(g,114,py);dot(g,x,y);}
+  function railWire(col,pin,rail,c){var py=AP[pin],x=bx(c),y=RY[rail];wpath("rail",col,"M114 "+py+" C150 "+py+" "+(x-40)+" "+y+" "+x+" "+y);dot("rail",114,py);dot("rail",x,y);}
+  function jump(g,col,h,rail,side){var e=hole(h),x=e[0],y1=e[1],y2=RY[rail],o=side*14;wpath(g,col,"M"+x+" "+y1+" C"+(x+o)+" "+y1+" "+(x+o)+" "+y2+" "+x+" "+y2);dot(g,x,y1);dot(g,x,y2);}
+  function part(g){var n=el("g",{});bbP.appendChild(tag(n,g));return n;}
+  function res(g,c1,c2){var x1=bx(c1),x2=bx(c2),y=RY.h,m=(x1+x2)/2,n=part(g);
+    n.appendChild(el("line",{x1:x1,y1:y,x2:x2,y2:y,stroke:"var(--muted)","stroke-width":2.5}));
+    n.appendChild(el("rect",{x:m-20,y:y-7,width:40,height:14,rx:6,fill:"var(--res)",stroke:"var(--ink)","stroke-width":1.5}));
+    [[-10,"--w-red"],[-3,"--w-red"],[4,"--w-gnd"]].forEach(function(b){var r=el("rect",{x:m+b[0],y:y-7,width:4,height:14});r.style.fill="var("+b[1]+")";n.appendChild(r);});
+    dot(g,x1,y);dot(g,x2,y);}
+  function led(g,cA,cK,col){var xa=bx(cA),xk=bx(cK),cx=(xa+xk)/2,y=RY.g,n=part(g);
+    n.appendChild(el("line",{x1:xa,y1:y,x2:cx-4,y2:y-14,stroke:"var(--muted)","stroke-width":2.5}));
+    n.appendChild(el("line",{x1:xk,y1:y,x2:cx+4,y2:y-14,stroke:"var(--muted)","stroke-width":2.5}));
+    var c=el("circle",{cx:cx,cy:y-20,r:10,stroke:"var(--ink)","stroke-width":1.5});c.style.fill="var("+col+")";n.appendChild(c);
+    n.appendChild(el("text",{x:xa-8,y:y-30,"text-anchor":"middle","font-size":"12"},"+"));
+    dot(g,xa,y);dot(g,xk,y);}
+  // rieles
+  railWire("--w-red","5V","+t",1); railWire("--w-gnd","GND","-t",1);
+  wpath("rail","--w-gnd","M750 130 C800 130 800 390 750 390"); dot("rail",750,130); dot("rail",750,390);
+  // sensor
+  (function(){var n=part("sen");
+    n.appendChild(el("text",{x:240,y:-4,"text-anchor":"middle"},"HC-SR04"));
+    n.appendChild(el("rect",{x:186,y:6,width:108,height:74,rx:6,fill:"var(--pcb)"}));
+    [213,267].forEach(function(cx){n.appendChild(el("circle",{cx:cx,cy:34,r:18,fill:"var(--metal)",stroke:"var(--ink)","stroke-width":2}));});
+    ["VCC","Trig","Echo","GND"].forEach(function(t,i){var x=bx(3+i);n.appendChild(el("line",{x1:x,y1:80,x2:x,y2:160,stroke:"var(--muted)","stroke-width":2.5}));n.appendChild(el("text",{x:x,y:72,"text-anchor":"middle","font-size":"8",fill:"var(--surface)"},t));dot("sen",x,160);});
+  })();
+  jump("sen","--w-red","b3","+t",-1); jump("sen","--w-gnd","b6","-t",1);
+  ardWire("sen","--w-blue","D9","c4"); ardWire("sen","--w-pur","D10","c5");
+  // servo
+  (function(){var n=part("sv");
+    n.appendChild(el("text",{x:370,y:-4,"text-anchor":"middle"},"Servo SG90"));
+    n.appendChild(el("rect",{x:320,y:6,width:100,height:44,rx:5,fill:"var(--pcb)"}));
+    [["--w-gnd",10],["--w-red",11],["--w-org",12]].forEach(function(w){var x=bx(w[1]);var ln=el("path",{d:"M"+x+" 50 L"+x+" 160",fill:"none","stroke-width":3.5,"stroke-linecap":"round"});ln.style.stroke="var("+w[0]+")";n.appendChild(ln);dot("sv",x,160);});
+  })();
+  jump("sv","--w-gnd","b10","-t",-1); jump("sv","--w-red","b11","+t",1); ardWire("sv","--w-org","D6","c12");
+  // LEDs
+  ardWire("led","--w-grn","D4","j10"); res("led",10,14); led("led",14,15,"--w-grn"); jump("led","--w-gnd","i15","-b",1);
+  ardWire("led","--w-led-red","D5","j17"); res("led",17,21); led("led",21,22,"--w-led-red"); jump("led","--w-gnd","i22","-b",1);
+  // pito
+  ardWire("bz","--w-yel","D7","j3");
+  (function(){var n=part("bz"),x1=bx(3),x2=bx(6),cx=(x1+x2)/2;
+    n.appendChild(el("line",{x1:x1,y1:300,x2:cx-14,y2:296,stroke:"var(--muted)","stroke-width":2.5}));
+    n.appendChild(el("line",{x1:x2,y1:300,x2:cx+14,y2:296,stroke:"var(--muted)","stroke-width":2.5}));
+    n.appendChild(el("circle",{cx:cx,cy:286,r:19,fill:"var(--ink)"}));
+    n.appendChild(el("circle",{cx:cx,cy:286,r:5,fill:"var(--muted)"}));
+    n.appendChild(el("text",{x:x1-2,y:270,"text-anchor":"middle","font-size":"12"},"+"));
+    dot("bz",x1,300);dot("bz",x2,300);})();
+  jump("bz","--w-gnd","i6","-b",1);
+
+  /* ---------- Pasos ---------- */
+  var pasos=[
+    {t:"Prepara la caneca",g:null,
+     h:["Pega el servo en la parte de atrás de la caneca, junto a la bisagra de la tapa.","Une el brazo del servo con la tapa usando un alambre o un palito de paleta.","Haz un hueco al frente de la caneca, a la altura de la mano, para el sensor.","Marca los materiales en la lista de arriba."],
+     tip:["Consejo","Prueba primero con una caja de cartón: es liviana y fácil de cortar."],rows:[]},
+    {t:"Prepara los rieles",g:"rail",
+     h:["Cable rojo del pin 5V del Arduino al riel + de arriba.","Cable negro de un pin GND al riel − de arriba.","Cable negro que une el riel − de arriba con el riel − de abajo, en la columna 30."],
+     tip:["Precaución","Nunca unas 5V con GND directamente: es un cortocircuito.","warn"],
+     rows:[["--w-red","Cable rojo","5V → riel + de arriba (col. 1)"],["--w-gnd","Cable negro","GND → riel − de arriba (col. 1)"],["--w-gnd","Cable negro","Riel − de arriba (col. 30) → riel − de abajo (col. 30)"]]},
+    {t:"Conecta el sensor HC-SR04",g:"sen",
+     h:["Inserta el sensor: VCC en a3, Trig en a4, Echo en a5 y GND en a6.","Cable rojo de b3 al riel + y cable negro de b6 al riel −.","Cable de c4 al pin D9 (Trig).","Cable de c5 al pin D10 (Echo)."],
+     tip:["Ojo","En la caneca, el sensor va en el frente. Llévalo con 4 cables macho-hembra largos que lleguen a las mismas columnas.","warn"],
+     rows:[["--pcb","HC-SR04","VCC a3 · Trig a4 · Echo a5 · GND a6"],["--w-red","Cable rojo","b3 → riel + de arriba"],["--w-gnd","Cable negro","b6 → riel − de arriba"],["--w-blue","Cable azul","c4 → D9"],["--w-pur","Cable morado","c5 → D10"]]},
+    {t:"Conecta el servo",g:"sv",
+     h:["Mete tres cables en el conector del servo y llévalos a la protoboard: café a a10, rojo a a11 y naranja a a12.","Cable negro de b10 al riel − y cable rojo de b11 al riel +.","Cable de c12 al pin D6."],
+     tip:["Consejo","Todavía no ajustes el alambre de la tapa: primero el código pone el servo en 0° (paso 7)."],
+     rows:[["--pcb","Servo SG90","café a10 · rojo a11 · naranja a12"],["--w-gnd","Cable negro","b10 → riel − de arriba"],["--w-red","Cable rojo","b11 → riel + de arriba"],["--w-org","Cable naranja","c12 → D6"]]},
+    {t:"Conecta los LEDs",g:"led",
+     h:["LED verde: resistencia de h10 a h14, pata larga en g14 y corta en g15. Cable de j10 a D4 y cable negro de i15 al riel −.","LED rojo: resistencia de h17 a h21, pata larga en g21 y corta en g22. Cable de j17 a D5 y cable negro de i22 al riel −."],
+     tip:["Precaución","Sin resistencia el LED se quema y puede dañar el pin del Arduino.","warn"],
+     rows:[["--w-grn","Cable verde","D4 → j10"],["--res","Resistencia 220 Ω","h10 → h14"],["--w-grn","LED verde","pata larga g14 · corta g15"],["--w-gnd","Cable negro","i15 → riel − de abajo"],["--w-led-red","Cable rojo","D5 → j17"],["--res","Resistencia 220 Ω","h17 → h21"],["--w-led-red","LED rojo","pata larga g21 · corta g22"],["--w-gnd","Cable negro","i22 → riel − de abajo"]]},
+    {t:"Conecta el pito",g:"bz",
+     h:["Pito: pata + (la larga) en g3 y pata − en g6.","Cable de j3 al pin D7.","Cable negro de i6 al riel − de abajo."],
+     tip:["Consejo","Usa un pito activo: suena solo con recibir 5V."],
+     rows:[["--w-yel","Cable amarillo","D7 → j3"],["--ink","Pito","pata + g3 · pata − g6"],["--w-gnd","Cable negro","i6 → riel − de abajo"]]},
+    {t:"Carga el código y ajusta la tapa",g:null,
+     h:["Elige los ajustes en el simulador y copia el código.","Conecta el Arduino, elige la placa Arduino Uno y el puerto, y súbelo.","Al encender, el servo queda en 0°. Con la tapa cerrada, ajusta ahora el alambre entre el brazo del servo y la tapa.","Abre el Monitor serie (9600 baudios) para ver la distancia que mide el sensor."],
+     tip:["Consejo","Si la tapa golpea o no sube lo suficiente, cambia el ángulo de apertura y vuelve a subir el código."],rows:[]},
+    {t:"Prueba y documenta",g:null,
+     h:["Acerca la mano despacio y anota a qué distancia se abre.","Prueba desde el lado: ¿el sensor te ve? Compáralo con el haz del simulador.","Cuenta cuántas veces se abre en un recreo.","Sube al blog del grupo un video corto y tus mediciones."],
+     tip:["Reto","Diseña e imprime en 3D un soporte para el sensor o una bisagra para la tapa."],rows:[]}
+  ];
+  var cur=Math.min(Math.max(store.get("can-step",0),0),pasos.length-1),done=store.get("can-done",{}),showAll=false;
+  var stepper=$("stepper"),card=$("stepCard"),holes=$("holes");
+  function groupsUpTo(i){var s=[];for(var k=0;k<=i;k++)if(pasos[k].g)s.push(pasos[k].g);return s;}
+  function renderBoard(){var vis=showAll?groupsUpTo(pasos.length-1):groupsUpTo(cur),now=pasos[cur].g;
+    grouped.forEach(function(n){var g=n.getAttribute("data-g"),v=vis.indexOf(g)>=0;n.style.display=v?"":"none";n.classList.toggle("old",v&&!showAll&&now!==null&&g!==now);});}
+  function renderStepper(){stepper.innerHTML="";
+    pasos.forEach(function(p,i){var b=document.createElement("button");b.type="button";b.className="chip"+(done[i]?" is-done":"");b.textContent=i+1;
+      b.setAttribute("aria-label","Paso "+(i+1)+": "+p.t+(done[i]?" (listo)":""));if(i===cur&&!showAll)b.setAttribute("aria-current","step");
+      b.addEventListener("click",function(){showAll=false;go(i);});stepper.appendChild(b);});
+    var sp=document.createElement("span");sp.className="spacer";stepper.appendChild(sp);
+    var all=document.createElement("button");all.type="button";all.textContent=showAll?"Volver al paso "+(cur+1):"Ver circuito completo";all.setAttribute("aria-pressed",showAll?"true":"false");
+    all.addEventListener("click",function(){showAll=!showAll;render();});stepper.appendChild(all);}
+  function renderCard(){var p=pasos[cur];
+    card.innerHTML='<p class="eyebrow">Paso '+(cur+1)+' de '+pasos.length+'</p><h3>'+p.t+'</h3><ol>'+p.h.map(function(x){return"<li>"+x+"</li>";}).join("")+'</ol>'+
+      '<div class="note'+(p.tip[2]?" "+p.tip[2]:"")+'"><strong>'+p.tip[0]+'</strong><span>'+p.tip[1]+'</span></div>'+
+      '<div class="step-foot"><label for="stepDone"><input type="checkbox" id="stepDone"'+(done[cur]?" checked":"")+'> Paso terminado</label>'+
+      '<div class="step-nav"><button type="button" id="prevB"'+(cur===0?" disabled":"")+'>Anterior</button><button type="button" class="btn-primary" id="nextB"'+(cur===pasos.length-1?" disabled":"")+'>Siguiente</button></div></div>';
+    $("stepDone").addEventListener("change",function(e){done[cur]=e.target.checked;store.set("can-done",done);renderStepper();});
+    $("prevB").addEventListener("click",function(){go(cur-1);});
+    $("nextB").addEventListener("click",function(){if(!done[cur]){done[cur]=true;store.set("can-done",done);}go(cur+1);});
+    holes.innerHTML='<h3>Hueco por hueco</h3>'+(p.rows.length?p.rows.map(function(r){return '<div class="hrow"><i class="sw" style="background:var('+r[0]+')"></i><div><b>'+r[1]+'</b><span>'+r[2]+'</span></div></div>';}).join(""):'<p class="empty">En este paso no se conecta nada nuevo.</p>');}
+  function render(){renderStepper();renderCard();renderBoard();}
+  function go(i){if(i<0||i>=pasos.length)return;cur=i;store.set("can-step",cur);render();}
+  render();
+
+  /* ---------- Código ---------- */
+  function codeText(C){
+    return [
+"// Caneca inteligente: la tapa se abre al acercar la mano",
+"#include <Servo.h>",
+"",
+"const int TRIG = 9;",
+"const int ECHO = 10;",
+"const int PIN_SERVO = 6;",
+"const int LED_VERDE = 4;",
+"const int LED_ROJO = 5;",
+"const int PITO = 7;",
+"",
+"// Ajustes",
+"const int DISTANCIA_APERTURA = "+C.dist+";   // cm",
+"const int ANGULO_CERRADA = 0;",
+"const int ANGULO_ABIERTA = "+C.ang+";",
+"const unsigned long TIEMPO_ABIERTA = "+(C.time*1000)+";  // ms",
+"",
+"Servo tapa;",
+"int aperturas = 0;",
+"",
+"long medirDistancia() {",
+"  digitalWrite(TRIG, LOW);",
+"  delayMicroseconds(2);",
+"  digitalWrite(TRIG, HIGH);",
+"  delayMicroseconds(10);",
+"  digitalWrite(TRIG, LOW);",
+"  long duracion = pulseIn(ECHO, HIGH, 30000);",
+"  if (duracion == 0) return 999;    // sin eco",
+"  return duracion * 0.034 / 2;       // velocidad del sonido",
+"}",
+"",
+"void setup() {",
+"  Serial.begin(9600);",
+"  pinMode(TRIG, OUTPUT);",
+"  pinMode(ECHO, INPUT);",
+"  pinMode(LED_VERDE, OUTPUT);",
+"  pinMode(LED_ROJO, OUTPUT);",
+"  pinMode(PITO, OUTPUT);",
+"  tapa.attach(PIN_SERVO);",
+"  tapa.write(ANGULO_CERRADA);",
+"  digitalWrite(LED_ROJO, HIGH);",
+"}",
+"",
+"void loop() {",
+"  long distancia = medirDistancia();",
+"  Serial.print(\"Distancia: \");",
+"  Serial.print(distancia);",
+"  Serial.println(\" cm\");",
+"",
+"  if (distancia <= DISTANCIA_APERTURA) {",
+"    aperturas++;",
+"    Serial.print(\"Abriendo, vez \");",
+"    Serial.println(aperturas);",
+"    digitalWrite(LED_ROJO, LOW);",
+"    digitalWrite(LED_VERDE, HIGH);",
+"    digitalWrite(PITO, HIGH);",
+"    delay(150);",
+"    digitalWrite(PITO, LOW);",
+"    tapa.write(ANGULO_ABIERTA);",
+"    delay(TIEMPO_ABIERTA);",
+"",
+"    // Espera a que retires la mano",
+"    while (medirDistancia() <= DISTANCIA_APERTURA) {",
+"      delay(200);",
+"    }",
+"    delay(500);",
+"",
+"    tapa.write(ANGULO_CERRADA);",
+"    digitalWrite(LED_VERDE, LOW);",
+"    digitalWrite(LED_ROJO, HIGH);",
+"    delay(500);",
+"  }",
+"  delay(100);",
+"}"
+    ].join("\n");
+  }
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var marks=/^const (int|unsigned long) (DISTANCIA_APERTURA|ANGULO_ABIERTA|TIEMPO_ABIERTA) =/;
+  function hl(line){var ci=line.indexOf("//"),code=ci>=0?line.slice(0,ci):line,com=ci>=0?line.slice(ci):"";
+    var out=esc(code).replace(/("[^"]*")/g,'<span class="s">$1</span>').replace(/\b(void|const|unsigned|long|int|if|while|return)\b/g,'<span class="k">$1</span>').replace(/^(#include)/,'<span class="k">$1</span>');
+    out+=com?'<span class="c">'+esc(com)+'</span>':"";if(marks.test(line))out="<mark>"+out+"</mark>";return out;}
+  var currentCode="";
+  function renderCode(){currentCode=codeText(cfg());$("code").innerHTML=currentCode.split("\n").map(hl).join("\n");}
+  renderCode();
+  var copyBtn=$("copyBtn");
+  copyBtn.addEventListener("click",function(){
+    function ok(){copyBtn.textContent="Copiado";setTimeout(function(){copyBtn.textContent="Copiar código";},1800);}
+    function fallback(){var r=document.createRange();r.selectNodeContents($("code"));var s=window.getSelection();s.removeAllRanges();s.addRange(r);copyBtn.textContent="Texto seleccionado: usa Ctrl+C";setTimeout(function(){copyBtn.textContent="Copiar código";},2600);}
+    try{navigator.clipboard.writeText(currentCode).then(ok,fallback);}catch(e){fallback();}
+  });
+
+  /* ---------- Quiz ---------- */
+  var preguntas=[
+    {q:"¿Cómo sabe el sensor HC-SR04 a qué distancia está la mano?",o:["Mide cuánto tarda en volver el eco de un sonido","Toma una foto de la mano","Mide el calor de la mano","Mide la luz que refleja la mano"],a:0,e:"Envía un ultrasonido por Trig y mide por Echo cuánto tarda en volver. Con la velocidad del sonido calcula la distancia."},
+    {q:"¿Qué hace la línea while (medirDistancia() <= DISTANCIA_APERTURA)?",o:["Mantiene la tapa abierta mientras la mano siga cerca","Abre la tapa más rápido","Apaga el sensor","Cuenta las aperturas"],a:0,e:"Mientras el sensor siga viendo algo cerca, el programa espera. Así la tapa no se cierra sobre la mano."},
+    {q:"La tapa sube muy poco. ¿Qué cambias en el código?",o:["ANGULO_ABIERTA","DISTANCIA_APERTURA","TIEMPO_ABIERTA","TRIG"],a:0,e:"ANGULO_ABIERTA es cuántos grados gira el servo. Súbelo de a 10° hasta que la tapa quede bien abierta."},
+    {q:"Si subes DISTANCIA_APERTURA a 100 cm, ¿qué puede pasar?",o:["Que la tapa se abra con cualquier persona o mueble cerca","Que la tapa no abra nunca","Que el servo gire más","Nada cambia"],a:0,e:"El sensor vería cosas lejanas, como una pared o alguien que pasa, y la tapa se abriría sin querer."},
+    {q:"¿Para qué sirve la resistencia de 220 Ω al lado de cada LED?",o:["Limita la corriente para que el LED no se queme","Hace que el LED brille más","Mide la distancia","Mueve el servo"],a:0,e:"Sin resistencia pasa demasiada corriente: el LED se quema y el pin del Arduino puede dañarse."}
+  ];
+  var qi=0,ans=[],qb=$("quizBox");
+  function renderQuiz(){
+    if(qi>=preguntas.length){var ok=ans.filter(Boolean).length;
+      qb.innerHTML='<div class="q"><p class="eyebrow">Resultado</p><h3>'+ok+' de '+preguntas.length+' correctas</h3><p class="muted">'+(ok===preguntas.length?"Entiendes cómo funciona la caneca.":"Repasa el simulador y el código, y vuelve a intentarlo.")+'</p><div class="actions"><button type="button" class="btn-primary" id="qAgain">Intentar de nuevo</button></div></div>';
+      $("qAgain").addEventListener("click",function(){qi=0;ans=[];renderQuiz();});return;}
+    var p=preguntas[qi],n=p.o.length,shift=(qi*3+1)%n,order=p.o.map(function(_,i){return (i+shift)%n;});
+    var dots=preguntas.map(function(_,i){return '<i class="'+(i<ans.length?(ans[i]?"ok":"no"):"")+(i===qi?" cur":"")+'"></i>';}).join("");
+    qb.innerHTML='<div class="q"><div class="q-top"><p class="eyebrow">Pregunta '+(qi+1)+' de '+preguntas.length+'</p><div class="dots" aria-hidden="true">'+dots+'</div></div><h3>'+p.q+'</h3><div class="opts">'+order.map(function(i){return '<button type="button" data-i="'+i+'">'+esc(p.o[i])+'</button>';}).join("")+'</div><div id="fb"></div></div>';
+    qb.querySelectorAll(".opts button").forEach(function(b){b.addEventListener("click",function(){
+      var i=+b.dataset.i,right=i===p.a;ans.push(right);
+      qb.querySelectorAll(".opts button").forEach(function(x){x.disabled=true;var xi=+x.dataset.i;if(xi===p.a)x.classList.add("right");else if(xi===i)x.classList.add("wrong");});
+      $("fb").innerHTML='<div class="feedback"><strong>'+(right?"Correcto. ":"No es esa. ")+'</strong>'+p.e+'</div><div class="actions" style="margin-top:12px"><button type="button" class="btn-primary" id="qNext">'+(qi===preguntas.length-1?"Ver resultado":"Siguiente pregunta")+'</button></div>';
+      $("qNext").addEventListener("click",function(){qi++;renderQuiz();});});});
+  }
+  renderQuiz();
+
+  if(location.hash){var t=$(location.hash.slice(1));if(t)t.scrollIntoView();}
+})();
+</script>
+
+</body>
+</html>
